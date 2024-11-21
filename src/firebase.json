@@ -1,0 +1,22 @@
+{
+    "hosting": {
+      "public": "build",
+      "rewrites": [
+        {
+          "source": "/**",
+          "function": "app"
+        }
+      ]
+    },
+    "functions": {
+      "source": "functions"
+    },
+    "firestore": {
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    },
+    "storage": {
+      "rules": "storage.rules"
+    }
+  }
+  

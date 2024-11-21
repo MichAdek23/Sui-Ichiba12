@@ -1,0 +1,31 @@
+/* src/styles/ProductSearchPage.css */
+.product-search-page {
+    padding: 20px;
+  }
+  
+  .search-bar input,
+  .filter-bar input {
+    padding: 10px;
+    margin: 5px;
+    width: 200px;
+  }
+  
+  .filter-bar {
+    margin-top: 20px;
+  }
+  
+  .product-list {
+    margin-top: 20px;
+  }
+  
+  .product-list li {
+    margin-bottom: 10px;
+    list-style-type: none;
+  }
+  
+  .product-list li a {
+    text-decoration: none;
+    color: #333;
+    font-size: 1.2rem;
+  }
+  
