@@ -1,68 +1,8 @@
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Match the 'products' collection for adding and retrieving products
-    match /products/{productId} {
-      
-      // Only allow reading the product details
-      allow read: if true;
-
-      // Only allow creating products if the user is authenticated
-      allow create: if request.auth != null;
-
-      // Only allow updating products if the user is the owner (for sellers)
-      allow update: if request.auth != null && resource.data.sellerId == request.auth.uid;
-
-      // Only allow deleting products if the user is the owner (for sellers)
-      allow delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
-    }
-
-    // Match the 'users' collection for user profiles
-    match /users/{userId} {
-
-      // Allow a user to read their own profile
-      allow read: if request.auth != null && request.auth.uid == userId;
-
-      // Allow a user to update their own profile
-      allow update: if request.auth != null && request.auth.uid == userId;
-
-      // Prevent users from creating their profiles directly (handled by backend)
-      allow create: if false;
-    }
-
-    // Match the 'transactions' collection for buying products
-    match /transactions/{transactionId} {
-
-      // Allow users to read their own transactions
-      allow read: if request.auth != null && request.auth.uid == resource.data.buyerId;
-
-      // Allow creating transactions if the buyer is authenticated and can buy
-      allow create: if request.auth != null &&
-                      request.resource.data.buyerId == request.auth.uid &&
-                      exists(/databases/$(database)/documents/products/$(request.resource.data.productId));
-
-      // Prevent deleting transactions
-      allow delete: if false;
-    }
-
-    // Match the 'messages' collection for messaging between users
-    match /messages/{messageId} {
-
-      // Allow reading messages for a conversation (messages between two users)
-      allow read: if request.auth != null && 
-                      (resource.data.receiverId == request.auth.uid || resource.data.senderId == request.auth.uid);
-
-      // Allow sending messages if the user is authenticated
-      allow create: if request.auth != null && 
-                      (request.resource.data.senderId == request.auth.uid ||
-                       request.resource.data.receiverId == request.auth.uid);
-
-      // Allow updating messages only if the user is the sender
-      allow update: if request.auth != null && 
-                      request.auth.uid == resource.data.senderId;
-
-      // Prevent deleting messages
-      allow delete: if false;
+    // Allow read/write access to all documents to authenticated users
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

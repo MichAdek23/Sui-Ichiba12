@@ -1,15 +1,24 @@
-const webpack = require("webpack");
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
-module.exports = function override(config) {
+module.exports = function override(config, env) {
+  // Add the polyfill plugin
+  config.plugins = [
+    ...config.plugins,
+    new NodePolyfillPlugin()
+  ];
+
+  // Resolve fallbacks for missing Node.js modules in the browser
   config.resolve.fallback = {
-    ...config.resolve.fallback,
-    stream: require.resolve("stream-browserify"),
-    crypto: require.resolve("crypto-browserify"),
-    path: require.resolve("path-browserify"),
-    os: require.resolve("os-browserify/browser"),
-    querystring: require.resolve("querystring-es3"),
-    http: require.resolve("stream-http"),
+    net: false,
+    tls: false,
     fs: false,
+    stream: require.resolve("stream-browserify"),
+    events: require.resolve("events/"),
+    util: require.resolve("util/"),
+    path: require.resolve("path-browserify"),
+    https: require.resolve("https-browserify"),
+    os: require.resolve("os-browserify")
   };
+
   return config;
 };

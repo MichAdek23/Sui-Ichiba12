@@ -27,25 +27,30 @@
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
+    },
+    {
+      "source": "ichiba12",
+      "codebase": "ichiba12",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
     }
   ],
   "hosting": {
-    "public": "ichiba-main",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
     ]
   },
   "emulators": {
     "auth": {
-      "port": 6237
+      "port": 5434
     },
     "functions": {
       "port": 6001
@@ -54,20 +59,30 @@
       "port": 6218
     },
     "database": {
-      "port": 6219
+      "port": 7878
     },
     "hosting": {
       "port": 6004
     },
     "storage": {
-      "port": 6035
+      "port": 7676
     },
     "ui": {
       "enabled": true
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "dataconnect": {
+      "port": 9399
+    }
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "dataconnect": {
+    "source": "dataconnect"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }

@@ -1,14 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import {
-  auth,
-  googleProvider,
-  facebookProvider,
-  signInWithEmail,
-  signInWithPhone,
-  signInWithUsername,
-  verifyPhoneNumber,
-} from "../services/firebase";
+import {auth,googleProvider,facebookProvider,signInWithEmail,signInWithPhone,signInWithUsername,verifyPhoneNumber,} from "../services/firebase";
 import { signInWithPopup, sendSignInLinkToEmail } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
@@ -34,7 +26,7 @@ const SignInPage = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
+  
     try {
       switch (mode) {
         case "email":
@@ -55,7 +47,7 @@ const SignInPage = () => {
           break;
         case "passwordless":
           const actionCodeSettings = {
-            url: "https://your-app-url.com/dashboard",
+            url: "https://sui-ichiba12.netlify.app/",
             handleCodeInApp: true,
           };
           await sendSignInLinkToEmail(auth, formData.email, actionCodeSettings);
@@ -64,22 +56,23 @@ const SignInPage = () => {
         default:
           throw new Error("Invalid sign-in mode.");
       }
-      navigate("/dashboard");
+      navigate("/"); // Redirect to homepage
       setSuccess("Sign-in successful!");
     } catch (err) {
       setError(err.message);
     }
   };
-
+  
   const handleSocialSignIn = async (provider) => {
     try {
       await signInWithPopup(auth, provider);
-      navigate("/dashboard");
+      navigate("/"); // Redirect to homepage
       setSuccess("Social sign-in successful!");
     } catch (err) {
       setError(err.message);
     }
   };
+  
 
   const renderInputs = () => {
     switch (mode) {

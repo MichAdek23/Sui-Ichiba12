@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { auth, googleProvider, facebookProvider, signUpWithEmail, signUpWithPhone, signUpWithUsername } from '../services/firebase';
-import { createUserWithEmailAndPassword, signInWithPopup, sendSignInLinkToEmail } from 'firebase/auth';
+import { auth, googleProvider, facebookProvider } from '../services/firebase';
+import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
@@ -8,15 +8,12 @@ const SignUpPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
-    username: '',
     password: '',
+    confirmPassword: '',
     phone: '',
-    otp: '',
   });
-  const [mode, setMode] = useState('email'); // Options: email, username, phone, passwordless
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,35 +24,18 @@ const SignUpPage = () => {
     setError('');
     setSuccess('');
 
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
+    if (!formData.phone.match(/^\d{10}$/)) {
+      setError('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
     try {
-      switch (mode) {
-        case 'email':
-          await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-          break;
-        case 'username':
-          await signUpWithUsername(formData.username, formData.password);
-          break;
-        case 'phone':
-          if (!otpSent) {
-            await signUpWithPhone(formData.phone);
-            setOtpSent(true);
-            setSuccess('OTP sent to your phone.');
-            return;
-          } else {
-            await signUpWithPhone(formData.phone, formData.otp);
-          }
-          break;
-        case 'passwordless':
-          const actionCodeSettings = {
-            url: 'https://your-app-url.com/dashboard',
-            handleCodeInApp: true,
-          };
-          await sendSignInLinkToEmail(auth, formData.email, actionCodeSettings);
-          setSuccess('Sign-up link sent to your email.');
-          return;
-        default:
-          throw new Error('Invalid sign-up mode.');
-      }
+      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       navigate('/dashboard');
       setSuccess('Sign-up successful!');
     } catch (err) {
@@ -73,116 +53,51 @@ const SignUpPage = () => {
     }
   };
 
-  const renderInputs = () => {
-    switch (mode) {
-      case 'email':
-        return (
-          <>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleInputChange}
-            />
-            <Label>Password</Label>
-            <Input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleInputChange}
-            />
-          </>
-        );
-      case 'username':
-        return (
-          <>
-            <Label>Username</Label>
-            <Input
-              type="text"
-              name="username"
-              placeholder="Enter your username"
-              value={formData.username}
-              onChange={handleInputChange}
-            />
-            <Label>Password</Label>
-            <Input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleInputChange}
-            />
-          </>
-        );
-      case 'phone':
-        return (
-          <>
-            <Label>Phone</Label>
-            <Input
-              type="tel"
-              name="phone"
-              placeholder="Enter your phone number"
-              value={formData.phone}
-              onChange={handleInputChange}
-            />
-            {otpSent && (
-              <>
-                <Label>OTP</Label>
-                <Input
-                  type="text"
-                  name="otp"
-                  placeholder="Enter the OTP"
-                  value={formData.otp}
-                  onChange={handleInputChange}
-                />
-              </>
-            )}
-          </>
-        );
-      case 'passwordless':
-        return (
-          <>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleInputChange}
-            />
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
     <SignUpContainer>
       <Form onSubmit={handleSignUp}>
         <h2>Sign Up</h2>
-        {renderInputs()}
+
+        <Label>Email</Label>
+        <Input
+          type="email"
+          name="email"
+          placeholder="Enter your email"
+          value={formData.email}
+          onChange={handleInputChange}
+        />
+
+        <Label>Password</Label>
+        <Input
+          type="password"
+          name="password"
+          placeholder="Enter your password"
+          value={formData.password}
+          onChange={handleInputChange}
+        />
+
+        <Label>Confirm Password</Label>
+        <Input
+          type="password"
+          name="confirmPassword"
+          placeholder="Confirm your password"
+          value={formData.confirmPassword}
+          onChange={handleInputChange}
+        />
+
+        <Label>Phone Number</Label>
+        <Input
+          type="tel"
+          name="phone"
+          placeholder="Enter your phone number"
+          value={formData.phone}
+          onChange={handleInputChange}
+        />
+
         {error && <Error>{error}</Error>}
         {success && <Success>{success}</Success>}
-        <Button type="submit">
-          {otpSent && mode === 'phone' ? 'Verify OTP' : 'Sign Up'}
-        </Button>
 
-        <ModeToggle>
-          {['email', 'username', 'phone', 'passwordless'].map((option) => (
-            <Button
-              key={option}
-              type="button"
-              onClick={() => setMode(option)}
-              isActive={mode === option}
-            >
-              {option.charAt(0).toUpperCase() + option.slice(1)}
-            </Button>
-          ))}
-        </ModeToggle>
+        <Button type="submit">Sign Up</Button>
 
         <SocialButtons>
           <Button type="button" onClick={() => handleSocialSignUp(googleProvider)}>
@@ -269,12 +184,6 @@ const Success = styled.p`
   color: green;
   font-size: 0.9rem;
   margin-bottom: 1rem;
-`;
-
-const ModeToggle = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1rem;
 `;
 
 const SocialButtons = styled.div`

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faUser, faBox, faHandshake, faCog, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
@@ -15,6 +17,10 @@ const AddProduct = React.lazy(() => import('./AddProduct'));
 const DashboardPage = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [userId, setUserId] = useState(null); // Add userId state
+  const [userBalance, setUserBalance] = useState(0); // Add userBalance state
+  const auth = getAuth();
+  const db = getFirestore();
   const navigate = useNavigate();
 
   // Placeholder user state (replace with your authentication logic)
@@ -26,11 +32,43 @@ const DashboardPage = () => {
   };
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate('/sign-in');
-    }
-  }, [currentUser, navigate]);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUserId(user.uid);
+        loadUserBalance(user.uid); // Load user balance from Firestore
+      } else {
+        navigate('/login'); // Redirect if user is not logged in
+      }
+    });
 
+    return () => unsubscribe();
+  }, [auth, navigate]);
+
+  // Function to load the user's balance from Firestore
+  const loadUserBalance = async (userId) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserBalance(userData.balance || 0); // Assuming balance is stored in Firestore
+      }
+    } catch (error) {
+      console.error('Error loading user balance:', error);
+    }
+  };
+
+  // Function to update the user's balance in Firestore (e.g., after a deposit)
+  const updateUserBalance = async (newBalance) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { balance: newBalance });
+      setUserBalance(newBalance); // Update balance in state
+    } catch (error) {
+      console.error('Error updating user balance:', error);
+    }
+  };
+ 
   const renderDashboard = () => (
     <DashboardOverview>
       <OverviewHeader>
@@ -40,10 +78,10 @@ const DashboardPage = () => {
       <DepositSection>
         <DepositCard>
           <h4>Your Available Balance</h4>
-          <BalanceAmount>₦10,000.00</BalanceAmount>
-          <DepositButton onClick={() => setActiveSection('deposit')}>Deposit Funds</DepositButton>
+          <BalanceAmount>{`SUI ${userBalance.toFixed(2)}`}</BalanceAmount> {/* Change to SUI */}
+          <DepositButton onClick={() => navigate('/deposit')}>Deposit Funds</DepositButton>
         </DepositCard>
-      </DepositSection>
+        </DepositSection>
       <StatsSection>
         <StatCard>
           <h4>Products Listed</h4>

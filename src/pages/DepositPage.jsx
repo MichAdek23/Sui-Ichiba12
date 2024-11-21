@@ -3,26 +3,28 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore'; // Firestore client SDK
-import { makePaystackPayment as createPaystackPayment, verifyPaystackPaymentRedirect as processSuccessfulPayment,} from '../services/Payment';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
-import { updateUserBalance } from '../services/firebase';
 
 const DepositPage = () => {
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('NGN');
-  const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [convertedAmount, setConvertedAmount] = useState(0);
   const [userId, setUserId] = useState(null);
+  const [suiWalletAddress, setSuiWalletAddress] = useState(null);
   const navigate = useNavigate();
   const auth = getAuth();
   const db = getFirestore(); // Initialize Firestore instance
+
+  // Initialize Sui Client for blockchain interactions
+  const client = new SuiClient({ url: getFullnodeUrl('devnet') });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserId(user.uid);
+        loadUserData(user.uid); // Load user-specific data (like wallet address)
       } else {
         navigate('/login');
       }
@@ -30,8 +32,17 @@ const DepositPage = () => {
     return () => unsubscribe();
   }, [auth, navigate]);
 
-  // Initialize Sui Client for blockchain interactions
-  const client = new SuiClient({ url: getFullnodeUrl('devnet') });
+  // Load user data from Firestore, including the SUI wallet address
+  const loadUserData = async (userId) => {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      setSuiWalletAddress(userData.suiWalletAddress); // Assuming the wallet address is stored in Firestore
+    } else {
+      setError('User data not found.');
+    }
+  };
 
   // Convert NGN to SUI
   const convertToSui = async (amount, currency) => {
@@ -51,110 +62,73 @@ const DepositPage = () => {
     }
   };
 
-  useEffect(() => {
-    const loadPaystackScript = () => {
-      return new Promise((resolve) => {
-        if (window.PaystackPop) {
-          resolve();
-        } else {
-          const script = document.createElement('script');
-          script.src = 'https://js.paystack.co/v1/inline.js';
-          script.async = true;
-          script.onload = resolve;
-          document.body.appendChild(script);
-        }
-      });
-    };
+  // Function to withdraw SUI coins from user's SUI wallet to the Firestore balance
+  const withdrawFromSuiWallet = async (amount) => {
+    try {
+      if (!suiWalletAddress) {
+        setError('SUI Wallet address is missing.');
+        return false;
+      }
 
-    loadPaystackScript();
-  }, []);
+      const senderWallet = await client.wallet.getAccount(userId);
 
-  // Handle form submission for deposit
+      // Assuming you have a method to transfer SUI from wallet to user account:
+      const transaction = await client.transactions.sendTransaction(senderWallet, suiWalletAddress, amount);
+      
+      console.log('SUI Withdrawal Transaction successful:', transaction);
+      return true;
+    } catch (error) {
+      console.error('Error withdrawing SUI from wallet:', error);
+      setError('Error during withdrawal. Please try again.');
+      return false;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await convertToSui(amount, currency);
+      await convertToSui(amount, currency);  // Convert amount to SUI
 
-      if (paymentMethod === 'card') {
-        try {
-          const paymentData = await createPaystackPayment(amount, currency);
+      // Withdraw SUI from the wallet to user's account
+      const withdrawalSuccessful = await withdrawFromSuiWallet(convertedAmount);
 
-          const paystack = window.PaystackPop;
-          if (!paystack) {
-            throw new Error('Paystack script is not loaded');
-          }
+      if (withdrawalSuccessful) {
+        // Update user balance in Firestore
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
 
-          const paystackTransaction = paystack.newTransaction(paymentData);
+        if (userDoc.exists()) {
+          const user = userDoc.data();
+          const newBalance = user.balance + convertedAmount;
 
-          paystackTransaction.on('paymentSuccess', async (response) => {
-            const reference = response.reference;
-
-            // Process payment success and update user balance
-            await processSuccessfulPayment(reference, amount, currency);
-
-            const userRef = doc(db, 'users', userId); // Firestore reference
-            const userDoc = await getDoc(userRef);
-
-            if (!userDoc.exists()) {
-              setLoading(false);
-              setError('User not found');
-              return;
-            }
-
-            const user = userDoc.data();
-            const newBalance = user.balance + convertedAmount;
-
-            // Update Firestore with new balance
-            await updateDoc(userRef, {
-              balance: newBalance,
-            });
-
-            // Send converted SUI coins to SUI-ICHIBA
-            await depositToSuiIchiba(userId, convertedAmount);
-
-            setLoading(false);
-            navigate('/dashboard');
+          // Update Firestore with new balance
+          await updateDoc(userRef, {
+            balance: newBalance,
           });
 
-          paystackTransaction.on('paymentCanceled', () => {
-            setLoading(false);
-            setError('Payment was canceled. Please try again.');
-          });
-        } catch (error) {
           setLoading(false);
-          setError(error.message || 'Deposit failed. Please try again.');
+          navigate('/dashboard');
+        } else {
+          setError('User not found in Firestore.');
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     } catch (error) {
       setLoading(false);
-      setError(error.message || 'Deposit failed. Please try again.');
-    }
-  };
-
-  // Function to send SUI coins to SUI-ICHIBA
-  const depositToSuiIchiba = async (userId, amount) => {
-    try {
-      // Assuming we have a SUI wallet and contract to deposit to SUI-ICHIBA
-      const recipientWalletAddress = 'SUI-ICHIBA-WALLET-ADDRESS'; // Replace with actual address
-      const senderWallet = await client.wallet.getAccount(userId);
-
-      // Sending transaction to SUI-ICHIBA wallet
-      const transaction = await client.transactions.sendTransaction(senderWallet, recipientWalletAddress, amount);
-
-      console.log('SUI Deposit Transaction successful:', transaction);
-    } catch (error) {
-      console.error('Error depositing SUI to SUI-ICHIBA:', error);
+      setError(error.message || 'Withdrawal failed. Please try again.');
     }
   };
 
   return (
     <DepositContainer>
-      <h2>Deposit Funds to SUI-ICHIBA</h2>
+      <h2>Deposit Funds to Dashboard from SUI Wallet</h2>
       <form onSubmit={handleSubmit}>
-        <label htmlFor="amount">Amount:</label>
+        <label htmlFor="amount">Amount (in NGN):</label>
         <input
           type="number"
           id="amount"
@@ -171,16 +145,6 @@ const DepositPage = () => {
           required
         >
           <option value="NGN">NGN</option>
-        </select>
-
-        <label htmlFor="payment-method">Payment Method:</label>
-        <select
-          id="payment-method"
-          value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
-          required
-        >
-          <option value="card">Card</option>
         </select>
 
         <button type="submit" disabled={loading}>

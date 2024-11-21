@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams} from 'react-router-dom';
-import { getProduct } from '../services/firebase';
-import { confirmDelivery } from '../services/blockchain'; // Correct blockchain imports
-import styled from 'styled-components'; // Import styled-components
+import { useParams, useNavigate } from 'react-router-dom';
+import { getProducts, getSeller } from '../services/firebase'; // Removed initiateEscrow import
+import { confirmDelivery } from '../services/blockchain';
+import styled from 'styled-components';
 
 const ProductPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
+  const [seller, setSeller] = useState(null);
   const [error, setError] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState('');
 
@@ -14,8 +16,11 @@ const ProductPage = () => {
     const fetchProduct = async () => {
       setError('');
       try {
-        const productData = await getProduct(id);
+        const productData = await getProducts(id);
         setProduct(productData);
+        
+        const sellerData = await getSeller(productData.sellerId);
+        setSeller(sellerData);
       } catch (err) {
         setError('Product not found.');
       }
@@ -25,8 +30,8 @@ const ProductPage = () => {
   }, [id]);
 
   const handleCreateEscrow = () => {
-    // Redirect to the escrow creation page with the product ID as a query parameter
-    window.location.href = `/escrow?productId=${id}`;
+    // Redirect to the escrow page with product ID and seller info
+    navigate(`/escrow?productId=${id}&sellerId=${product.sellerId}`);
   };
 
   const handleConfirmDelivery = async () => {
@@ -39,6 +44,11 @@ const ProductPage = () => {
     }
   };
 
+  const handleChatWithSeller = () => {
+    // Redirect to the chat page
+    navigate(`/chat/${seller.id}`);
+  };
+
   if (!product) {
     return <div>Loading...</div>;
   }
@@ -46,7 +56,7 @@ const ProductPage = () => {
   return (
     <ProductPageContainer>
       <ProductTitle>{product.name}</ProductTitle>
-      {error && <ErrorMessage>{error}</ErrorMessage>}
+      {error && <ErrorMessage>{error}</ErrorMessage>} {/* Used ErrorMessage here */}
       <ProductDetails>
         <p>
           <strong>Price:</strong> {product.price} Sui
@@ -54,10 +64,15 @@ const ProductPage = () => {
         <p>
           <strong>Description:</strong> {product.description}
         </p>
+        <p>
+          <strong>Seller:</strong> {seller ? seller.username : 'Loading...'} 
+          <Rating>{seller?.rating || 'N/A'}</Rating> 
+        </p>
       </ProductDetails>
 
-      <Button onClick={handleCreateEscrow}>Create Escrow for Purchase</Button>
-      
+      <Button onClick={handleChatWithSeller}>Chat with Seller</Button>
+      <Button onClick={handleCreateEscrow}>Finalize Purchase</Button>
+
       <Button onClick={handleConfirmDelivery}>Confirm Delivery</Button>
       {deliveryStatus && <StatusMessage>{deliveryStatus}</StatusMessage>}
     </ProductPageContainer>
@@ -90,6 +105,11 @@ const ProductDetails = styled.div`
   }
 `;
 
+const Rating = styled.span`
+  font-weight: bold;
+  color: gold;
+`;
+
 const Button = styled.button`
   background-color: #007bff;
   color: white;
@@ -113,11 +133,11 @@ const StatusMessage = styled.p`
   text-align: center;
   font-size: 1rem;
   margin-top: 10px;
-  color: #28a745; // Green for success messages
+  color: #28a745;
 `;
 
 const ErrorMessage = styled.p`
   text-align: center;
   font-size: 1rem;
-  color: #dc3545; // Red for error messages
+  color: #dc3545;
 `;

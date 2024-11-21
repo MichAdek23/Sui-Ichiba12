@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { getProducts, updateProduct, deleteProduct } from "../services/firebase"; // Import necessary Firebase functions
+import { getProducts, deleteProduct } from "../services/firebase"; // Import necessary Firebase functions
 import { useNavigate } from 'react-router-dom';
 
 // Styled Components
@@ -110,12 +110,6 @@ const MyProductsPage = () => {
     fetchProducts();
   }, []);
 
-  // Handle product edit
-  const handleEdit = (productId) => {
-    navigate(`/edit-product/${productId}`);
-  };
-  
-
   // Handle product removal
   const handleRemove = async (productId) => {
     try {
@@ -134,7 +128,7 @@ const MyProductsPage = () => {
       ) : products.length === 0 ? (
         <NoProductsMessage>
           Hey, you have no products for sale yet.{" "}
-          <AddProductButton onClick={() => navigate("/add-product")}>Add a Product</AddProductButton>
+          <AddProductButton onClick={() => navigate("/dashboard")}>Add a Product</AddProductButton>
         </NoProductsMessage>
       ) : (
         <ProductList>
@@ -144,7 +138,7 @@ const MyProductsPage = () => {
               <ProductDescription>{product.description}</ProductDescription>
               <ProductPrice>{product.price}</ProductPrice>
               <ProductActions>
-                <Button onClick={() => handleEdit(product.id)}>Edit</Button>
+                <Button onClick={() => navigate(`/edit-product/${product.id}`)}>Edit</Button>
                 <Button onClick={() => handleRemove(product.id)}>Remove</Button>
               </ProductActions>
             </ProductCard>

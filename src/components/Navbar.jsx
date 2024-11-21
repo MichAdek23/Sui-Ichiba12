@@ -42,13 +42,13 @@ const Navbar = () => {
         <StyledLink to="/" onClick={() => setMenuOpen(false)}>Home</StyledLink>
         {auth.currentUser ? (
           <>
-            <StyledLink to="/product-search" onClick={() => setMenuOpen(false)}>Search</StyledLink>
+            <StyledLink to="/product-search-page" onClick={() => setMenuOpen(false)}>Search</StyledLink>
             <StyledLink to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</StyledLink>
             <SignOutButton onClick={handleSignOut}>Sign Out</SignOutButton>
           </>
         ) : (
           <>
-            <StyledLink to="/product-search" onClick={() => setMenuOpen(false)}>Search</StyledLink>
+            <StyledLink to="/product-search-page" onClick={() => setMenuOpen(false)}>Search</StyledLink>
             <StyledLink to="/sign-in" onClick={() => setMenuOpen(false)}>Sign In to Get Started</StyledLink>
           </>
         )}
