@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { getAvailableProducts } from '../services/firebase'; // Service to fetch available products
 import styled, { keyframes } from 'styled-components';
+import placeholder from '../assets/media/placeholder.png'; 
 
 const ProductSearchPage = () => {
   const [products, setProducts] = useState([]);
@@ -123,10 +125,15 @@ const ProductSearchPage = () => {
         <ProductList>
           {filteredProducts.map((product) => (
             <ProductCard key={product.id}>
-              <img src={product.image || '/placeholder.png'} alt={product.name} />
-              <h3>{product.name}</h3>
-              <p>Category: {product.category}</p>
-              <p>Price: {product.price} SUI</p>
+              <Link to={`/product/${product.id}`}> {/* Link to ProductDetailsPage */}
+                <img
+                  src={product.image || placeholder}
+                  alt={product.name}
+                />
+                <h3>{product.name}</h3>
+                <p>Category: {product.category}</p>
+                <p>Price: {product.price} SUI</p>
+              </Link>
             </ProductCard>
           ))}
         </ProductList>

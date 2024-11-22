@@ -1,37 +1,25 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+// AuthContext.js
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { auth } from "../services/firebase"; // Firebase auth import
 
-// Create a context for authentication
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
-// Define the AuthProvider component
+export const useAuth = () => useContext(AuthContext);
+
 export const AuthProvider = ({ children }) => {
-  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken') || null);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Update the authToken in localStorage when the token changes
   useEffect(() => {
-    if (authToken) {
-      localStorage.setItem('authToken', authToken);
-    } else {
-      localStorage.removeItem('authToken');
-    }
-  }, [authToken]);
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      setCurrentUser(user);
+    });
 
-  const login = (token) => {
-    setAuthToken(token);
-  };
-
-  const logout = () => {
-    setAuthToken(null);
-  };
+    return unsubscribe; // Cleanup on unmount
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ authToken, login, logout }}>
+    <AuthContext.Provider value={{ currentUser }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-// Create the custom hook `useAuth`
-export const useAuth = () => {
-  return useContext(AuthContext);
 };

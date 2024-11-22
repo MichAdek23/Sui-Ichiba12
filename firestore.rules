@@ -1,6 +1,12 @@
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all documents to authenticated users
+    // Allow anyone to add a product to the 'products' collection
+    match /products/{productId} {
+      allow create: if true;  // Anyone can create a product
+      allow read, update, delete: if request.auth != null; // Only authenticated users can read, update, or delete products
+    }
+
+    // The rest of the documents should require authentication for any operations
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

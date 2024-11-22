@@ -56,7 +56,7 @@ const SignInPage = () => {
         default:
           throw new Error("Invalid sign-in mode.");
       }
-      navigate("/"); // Redirect to homepage
+      navigate("/dashboard"); // Redirect to homepage
       setSuccess("Sign-in successful!");
     } catch (err) {
       setError(err.message);
@@ -66,7 +66,7 @@ const SignInPage = () => {
   const handleSocialSignIn = async (provider) => {
     try {
       await signInWithPopup(auth, provider);
-      navigate("/"); // Redirect to homepage
+      navigate("/dashboard"); // Redirect to homepage
       setSuccess("Social sign-in successful!");
     } catch (err) {
       setError(err.message);

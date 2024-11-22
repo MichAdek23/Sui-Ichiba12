@@ -1,21 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import placeholder from '../assets/media/placeholde.png';
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
+  const [imageError, setImageError] = useState(false);
 
   const handleViewDetails = () => {
-    // Navigate to the product details page
     navigate(`/product/${product.id}`);
+  };
+
+  const handleImageError = () => {
+    setImageError(true); // Set the error flag to true if the image fails to load
   };
 
   return (
     <Card>
-      <Image src={product.imageUrl} alt={product.name} />
+      <Image
+        src={imageError ? placeholder : product.imageUrl} // Use placeholder if image fails
+        alt={product.name}
+        onError={handleImageError} // Trigger when image fails to load
+      />
       <Content>
         <ProductName>{product.name}</ProductName>
-        <ProductPrice>${product.price}</ProductPrice>
+        <ProductPrice>{product.price} Sui</ProductPrice>
         <Button onClick={handleViewDetails}>View Details</Button>
       </Content>
     </Card>

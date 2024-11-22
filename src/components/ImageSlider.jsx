@@ -1,30 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 
-// Example images (Replace with your own)
-const images = [
-  'https://via.placeholder.com/800x400?text=Image+1',
-  'https://via.placeholder.com/800x400?text=Image+2',
-  'https://via.placeholder.com/800x400?text=Image+3',
-  'https://via.placeholder.com/800x400?text=Image+4',
-];
-
-const ImageSlider = () => {
+const ImageSlider = ({ images }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const nextSlide = () => {
+  // Wrap nextSlide in useCallback to ensure stability
+  const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % images.length);
-  };
+  }, [images.length]);
 
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev - 1 + images.length) % images.length);
-  };
+  }, [images.length]);
 
   // Automatically switch slides every 5 seconds
   useEffect(() => {
     const slideInterval = setInterval(nextSlide, 5000);
     return () => clearInterval(slideInterval);
-  }, []);
+  }, [nextSlide]);
 
   return (
     <SliderContainer>
@@ -58,6 +51,7 @@ const ImageSlider = () => {
 
 export default ImageSlider;
 
+// Styled Components
 const SliderContainer = styled.div`
   position: relative;
   width: 100%;

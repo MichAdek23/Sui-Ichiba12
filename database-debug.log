@@ -1,2 +1,3 @@
 19:28:56.994 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
 19:28:57.215 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:7878
+22:54:09.542 [NamespaceSystem-akka.actor.default-dispatcher-8] INFO com.firebase.core.namespace.NamespaceActor - ichiba-29719 successfully activated FBKV (SurveyIdle(0)) wait: 948ms, init: 0ms

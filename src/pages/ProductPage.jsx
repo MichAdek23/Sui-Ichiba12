@@ -29,6 +29,12 @@ const ProductPage = () => {
     fetchProduct();
   }, [id]);
 
+  useEffect(() => {
+    if (product) {
+      document.title = `${product.name} - Sui Marketplace`;
+    }
+  }, [product]);
+
   const handleCreateEscrow = () => {
     // Redirect to the escrow page with product ID and seller info
     navigate(`/escrow?productId=${id}&sellerId=${product.sellerId}`);

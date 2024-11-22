@@ -1,38 +1,44 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator, collection, query, where, getDocs, getDoc,doc, deleteDoc, updateDoc } from "firebase/firestore";
-import { 
-  getAuth, 
-  connectAuthEmulator, 
-  GoogleAuthProvider, 
-  FacebookAuthProvider, 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  RecaptchaVerifier, 
-  signInWithPhoneNumber, 
-  PhoneAuthProvider 
-} from "firebase/auth";
+import { getAuth, connectAuthEmulator, GoogleAuthProvider, FacebookAuthProvider, signInWithEmailAndPassword,createUserWithEmailAndPassword,RecaptchaVerifier, signInWithPhoneNumber,  PhoneAuthProvider } from "firebase/auth";
 import { getStorage, connectStorageEmulator, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { v4 as uuidv4 } from "uuid";
+import { setPersistence, browserLocalPersistence } from 'firebase/auth';
 
 // Initialize Firebase with the config (replace with your actual config values)
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyAZdm3ENCGbPmqlmmhRMT4dmkgjFgCMRJ4",
+  authDomain: "ichiba-29719.firebaseapp.com",
+  projectId: "ichiba-29719",
+  storageBucket: "ichiba-29719.firebasestorage.app",
+  messagingSenderId: "167135427620",
+  appId: "1:167135427620:web:68fb87ec98504cfa192cb1",
+  measurementId: "G-72QJ2KFLWK"
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
+
 
 // Connect to the Firebase Emulator for Firestore, Auth, and Storage
 connectFirestoreEmulator(db, "localhost", 6218);  // Firestore Emulator on port 5434
 connectAuthEmulator(auth, "http://localhost:5434");  // Auth Emulator on port 7979
-connectStorageEmulator(storage, "localhost", 7676);  // Storage Emulator on port 7676
+connectStorageEmulator(storage, "localhost", 7676);  
+
+
+
+// Ensure persistence across sessions
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log('Persistence set to local. User session will remain active until explicitly logged out.');
+  })
+  .catch((error) => {
+    console.error('Error setting persistence:', error);
+  });
+
+
 
 // Google and Facebook providers
 const googleProvider = new GoogleAuthProvider();
@@ -97,31 +103,30 @@ const signInWithPhone = async (verificationId, otp) => {
 };
 
 // Fetch products of the current user
-const getProducts = async () => {
+export const getProducts = async () => {
   try {
-    // Get the current user's ID
-    const userId = auth.currentUser.uid;
-
-    // Create a reference to the products collection
-    const productsCollection = collection(db, "products");
-
-    // Create a query to fetch products for the current user
-    const q = query(productsCollection, where("userId", "==", userId));
-
-    // Fetch the documents
-    const querySnapshot = await getDocs(q);
-
-    // Map the documents to an array of products
-    const products = querySnapshot.docs.map((doc) => ({
+    const querySnapshot = await getDocs(collection(db, "products"));
+    const productsList = querySnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data(),
+      ...doc.data()
     }));
-
-    return products;
+    return productsList;
   } catch (error) {
-    console.error("Error fetching products:", error);
-    throw new Error("Failed to fetch products");
+    throw new Error("Failed to fetch products: " + error.message);
   }
+};
+
+const getProductsByCategory = async (category) => {
+  const productsCollection = collection(db, "products");
+  const q = query(productsCollection, where("category", "==", category));  // Example query filtering by category
+
+  const querySnapshot = await getDocs(q);
+  const products = querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+
+  return products;
 };
 
 // Upload image to Firebase Storage
@@ -191,6 +196,38 @@ const getSeller = async (sellerId) => {
   }
 };
 
+// Function to generate a unique ID with SIch prefix
+const generateSIchUUID = () => {
+  const uniqueID = uuidv4(); // Generate a UUID
+  return `SIch-${uniqueID}`;
+};
+
+// Function to assign SIch UUID to a user in Firestore
+export const assignSIchUUID = async (userId) => {
+  if (!userId) return; // Ensure userId exists
+
+  const userRef = doc(db, "users", userId);
+
+  try {
+    // Check if the user already has a SIch number
+    const userDoc = await getDoc(userRef);
+    if (userDoc.exists() && userDoc.data().sichNumber) {
+      console.log(`User ${userId} already has a SIch Number: ${userDoc.data().sichNumber}`);
+      return; // Skip assigning if already exists
+    }
+
+    // Generate a new SIch UUID
+    const sichNumber = generateSIchUUID();
+
+    // Update Firestore document with the generated number
+    await updateDoc(userRef, { sichNumber });
+
+    console.log(`SIch Number ${sichNumber} assigned to user ${userId}`);
+  } catch (error) {
+    console.error("Error assigning SIch UUID:", error);
+  }
+};
+
 
 export {
   app,
@@ -199,9 +236,9 @@ export {
   storage,
   googleProvider,
   facebookProvider,
+  getProductsByCategory,
   getSeller,
   uploadImage,
-  getProducts,
   updateProduct,
   getAvailableProducts,
   deleteProduct,

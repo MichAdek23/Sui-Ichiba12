@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { getFirestore, collection, addDoc } from "firebase/firestore";
 import { getApp } from "firebase/app"; // Ensure the Firebase app is initialized
 import { uploadImage } from '../services/firebase';
+import { getAuth, onAuthStateChanged } from "firebase/auth"; // Import Firebase Auth
 
 // Styled Components (same as before)
 const Container = styled.div`
@@ -173,11 +174,25 @@ const AddProductPage = () => {
   const [imageFiles, setImageFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [user, setUser] = useState(null); // Track the logged-in user
 
-  // Initialize Firestore
-  const db = getFirestore(getApp()); // Use client-side SDK
+  // Initialize Firestore and Firebase Authentication
+  const db = getFirestore(getApp());
+  const auth = getAuth();
 
-  // Convert NGN to SUI
+  // Check if the user is logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUser(user); // Set user when logged in
+      } else {
+        setUser(null); // Clear user if logged out
+      }
+    });
+
+    return () => unsubscribe(); // Cleanup on unmount
+  }, [auth]);
+
   const convertToSui = async (amount, currency = "ngn") => {
     try {
       const response = await fetch(
@@ -185,7 +200,7 @@ const AddProductPage = () => {
       );
       const data = await response.json();
       if (data.sui && data.sui[currency.toLowerCase()]) {
-        return amount / data.sui[currency.toLowerCase()]; // Convert amount to SUI
+        return amount / data.sui[currency.toLowerCase()];
       }
       throw new Error("Unable to fetch conversion rate.");
     } catch (error) {
@@ -194,7 +209,6 @@ const AddProductPage = () => {
     }
   };
 
-  // Handle price change with conversion to SUI
   const handlePriceChange = async (e) => {
     const value = e.target.value;
     setProductData((prevData) => ({ ...prevData, price: value }));
@@ -211,7 +225,6 @@ const AddProductPage = () => {
     }
   };
 
-  // Handle input changes for other fields
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProductData((prevData) => ({
@@ -220,7 +233,6 @@ const AddProductPage = () => {
     }));
   };
 
-  // Handle file selection for images
   const handleFileSelection = (e) => {
     const files = Array.from(e.target.files);
     const filePreviews = files.map((file) => URL.createObjectURL(file));
@@ -231,7 +243,6 @@ const AddProductPage = () => {
     }));
   };
 
-  // Remove image preview
   const removeImage = (index) => {
     setImageFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
     setProductData((prevData) => ({
@@ -240,13 +251,11 @@ const AddProductPage = () => {
     }));
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const { name, description, price, category, deliveryTime, images } = productData;
 
-    // Validate form to avoid undefined values
     if (
       !name ||
       !description ||
@@ -264,31 +273,22 @@ const AddProductPage = () => {
     setMessage("");
 
     try {
-      // Convert price to SUI
       const priceInSui = await convertToSui(price, "ngn");
 
-      // Upload images to Firebase Storage
       const imageUploadPromises = imageFiles.map((file) => uploadImage(file));
       const uploadedImageURLs = await Promise.all(imageUploadPromises);
 
-      // Prepare product data
       const productDataToSave = {
         name,
         description,
-        price: priceInSui.toFixed(4), // Store price in SUI
+        price: priceInSui.toFixed(4),
         category,
         deliveryTime,
         images: uploadedImageURLs,
         createdAt: new Date().toISOString(),
       };
 
-      // Ensure that product data is not undefined before saving
-      if (!productDataToSave.name || !productDataToSave.price || !productDataToSave.category) {
-        throw new Error("Invalid product data.");
-      }
-
-      // Save product to Firestore
-      await addDoc(collection(db, "products"), productDataToSave);  // Add product to Firestore collection
+      await addDoc(collection(db, "products"), productDataToSave);
 
       setMessage("Product added successfully!");
       setProductData({
@@ -307,6 +307,11 @@ const AddProductPage = () => {
       setLoading(false);
     }
   };
+
+  // If the user is not logged in, display a message
+  if (!user) {
+    return <Message>Please log in to add a product.</Message>;
+  }
 
   return (
     <Container>

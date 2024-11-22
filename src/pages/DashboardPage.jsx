@@ -1,12 +1,12 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
-import styled, { keyframes } from 'styled-components';
+import { getAuth, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { useNavigate, Link } from 'react-router-dom'; // Import Link
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faUser, faBox, faHandshake, faCog, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import styled, { keyframes } from 'styled-components';
 
-// Lazy load components
+// Dynamically import pages using React.lazy
 const ProfilePage = React.lazy(() => import('./ProfilePage'));
 const MyProductsPage = React.lazy(() => import('./MyProductsPage'));
 const EscrowPage = React.lazy(() => import('./EscrowPage'));
@@ -17,83 +17,142 @@ const AddProduct = React.lazy(() => import('./AddProduct'));
 const DashboardPage = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-  const [userId, setUserId] = useState(null); // Add userId state
   const [userBalance, setUserBalance] = useState(0); // Add userBalance state
+  const [userName, setUserName] = useState(''); // Add userName state
+  const [userAvatar, setUserAvatar] = useState(''); // Add userAvatar state
   const auth = getAuth();
+  const user = auth.currentUser;
   const db = getFirestore();
   const navigate = useNavigate();
+  const [productsCount, setProductsCount] = useState(0);
+  const [escrowsCount, setEscrowsCount] = useState(0);
+  const [notificationsCount, setNotificationsCount] = useState(0);
 
-  // Placeholder user state (replace with your authentication logic)
-  const currentUser = { name: 'Test User', avatarUrl: '', displayName: 'Test User' };
-
-  const handleSignOut = () => {
-    console.log('User signed out');
-    navigate('/sign-in');
+  // Sign out function
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      navigate('/sign-in');  // Redirect to sign-in page after logout
+    } catch (err) {
+      console.error('Sign-out failed', err.message);
+    }
   };
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setUserId(user.uid);
-        loadUserBalance(user.uid); // Load user balance from Firestore
-      } else {
-        navigate('/login'); // Redirect if user is not logged in
+  const loadUserData = async (userId) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log(userData);
       }
-    });
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
 
-    return () => unsubscribe();
-  }, [auth, navigate]);
-
-  // Function to load the user's balance from Firestore
   const loadUserBalance = async (userId) => {
     try {
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        setUserBalance(userData.balance || 0); // Assuming balance is stored in Firestore
+        setUserBalance(userData.balance || 0);
       }
     } catch (error) {
       console.error('Error loading user balance:', error);
     }
   };
 
-  // Function to update the user's balance in Firestore (e.g., after a deposit)
-  const updateUserBalance = async (newBalance) => {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, { balance: newBalance });
-      setUserBalance(newBalance); // Update balance in state
-    } catch (error) {
-      console.error('Error updating user balance:', error);
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        setUserName(user.displayName || ''); // Set displayName from Firebase Auth
+        setUserAvatar(user.photoURL || 'default-avatar-url'); // Set avatar from Firebase Auth
+
+        loadUserData(user.uid); // Optionally load additional user data from Firestore
+        loadUserBalance(user.uid); // Load user balance from Firestore
+      } else {
+        navigate('/sign-in');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, navigate]);
+
+  useEffect(() => {
+    const userId = user?.uid; // Get the current user's UID
+
+    if (userId) {
+      // Fetch products count for the logged-in user
+      const fetchProducts = async () => {
+        try {
+          const q = query(collection(db, "products"), where("userId", "==", userId)); // Filter products by userId
+          const querySnapshot = await getDocs(q);
+          setProductsCount(querySnapshot.size); // Count the number of products listed by the user
+        } catch (err) {
+          console.error('Error fetching products:', err);
+        }
+      };
+
+      // Fetch active escrows count for the logged-in user
+      const fetchEscrows = async () => {
+        try {
+          const q = query(collection(db, "escrows"), where("userId", "==", userId)); // Filter escrows by userId
+          const querySnapshot = await getDocs(q);
+          const activeEscrows = querySnapshot.docs.filter(doc => doc.data().status === 'active'); // Filter active escrows
+          setEscrowsCount(activeEscrows.length); // Count active escrows
+        } catch (err) {
+          console.error('Error fetching escrows:', err);
+        }
+      };
+
+      // Fetch notifications count for the logged-in user
+      const fetchNotifications = async () => {
+        try {
+          const q = query(collection(db, "notifications"), where("userId", "==", userId)); // Filter notifications by userId
+          const querySnapshot = await getDocs(q);
+          setNotificationsCount(querySnapshot.size); // Count the number of notifications for the user
+        } catch (err) {
+          console.error('Error fetching notifications:', err);
+        }
+      };
+
+      // Run the fetch functions
+      fetchProducts();
+      fetchEscrows();
+      fetchNotifications();
     }
-  };
- 
+
+  }, [user?.uid, db]); // Only re-run effect if user UID changes
+
+
+  // Render the dashboard content
   const renderDashboard = () => (
     <DashboardOverview>
       <OverviewHeader>
-        <h3>Welcome, {currentUser?.name || 'User'}!</h3>
+        <h3>Welcome, {userName ? userName.split(' ')[0] : user.uid}!</h3>
         <p>Here’s an overview of your available balance and actions.</p>
       </OverviewHeader>
       <DepositSection>
         <DepositCard>
           <h4>Your Available Balance</h4>
-          <BalanceAmount>{`SUI ${userBalance.toFixed(2)}`}</BalanceAmount> {/* Change to SUI */}
-          <DepositButton onClick={() => navigate('/deposit')}>Deposit Funds</DepositButton>
+          <BalanceAmount>{`SUI ${userBalance.toFixed(2)}`}</BalanceAmount>
+          <DepositButton onClick={() => setActiveSection('deposit')}>Deposit Funds</DepositButton>
         </DepositCard>
-        </DepositSection>
+      </DepositSection>
       <StatsSection>
         <StatCard>
           <h4>Products Listed</h4>
-          <p>5</p>
+          <p>{productsCount}</p>
         </StatCard>
         <StatCard>
           <h4>Active Escrows</h4>
-          <p>2</p>
+          <p>{escrowsCount}</p>
         </StatCard>
         <StatCard>
           <h4>Notifications</h4>
-          <p>3</p>
+          <p>{notificationsCount}</p>
         </StatCard>
       </StatsSection>
       <ActionLinks>
@@ -112,8 +171,8 @@ const DashboardPage = () => {
         </SidebarToggle>
         <Logo>Sui-Ichiba</Logo>
         <ProfileSection>
-          <Avatar src={currentUser?.avatarUrl || ''} />
-          <UserName>{currentUser?.displayName || 'User'}</UserName>
+          <Avatar src={userAvatar || ''} /> {/* Display the user's avatar */}
+          <UserName>{userName || 'User'}</UserName> {/* Display the user's name */}
           <UserBadge>PRO</UserBadge>
         </ProfileSection>
         <NavSection>
@@ -157,7 +216,7 @@ const DashboardPage = () => {
       </SidebarWrapper>
 
       <MainContent sidebarOpen={isSidebarVisible}>
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<LoadingSpinner />}>
           {activeSection === 'profile' && <ProfilePage />}
           {activeSection === 'myproducts' && <MyProductsPage />}
           {activeSection === 'escrows' && <EscrowPage />}
@@ -172,7 +231,6 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
-
 
 
 /// Main Dashboard Wrapper
@@ -212,6 +270,7 @@ flex-direction: column;
 align-items: center;
 gap: 20px;
 height: 100vh;
+border-radius:30%;
 position: fixed;
 left: 0;
 top: 0;
